@@ -35,6 +35,8 @@ export interface Drink {
   layers: DrinkLayer[] // 从上到下排列
   topping?: Topping
   photo?: string // 实物打卡照路径（可选）
+  cardPhoto?: string // 实体卡片照片路径（可选）
+  date?: string // 打卡日期，如 '2026-10-23'
 }
 
 /** 一家咖啡店及其被打卡的特调 */

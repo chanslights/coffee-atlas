@@ -87,6 +87,7 @@ export const shops: CoffeeShop[] = [
         alcohol: 0,
         topping: { kind: 'dust', color: '#3E5A26', label: '开心果碎' },
         photo: '/photos/pistachio-dirty.jpg',
+        date: '2026-10-23',
         layers: [
           { name: '浓缩咖啡', color: '#7A4A26', ratio: 0.1, texture: 'dots', side: 'right' },
           { name: '开心果奶酱', color: '#D8DDC0', ratio: 0.18, side: 'left' },
