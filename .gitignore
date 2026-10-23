@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# SQLite 数据库文件
+server/*.db
+server/*.db-*

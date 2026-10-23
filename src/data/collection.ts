@@ -1,4 +1,4 @@
-import type { CoffeeShop } from '@/types/coffee'
+import type { CoffeeShop } from '../types/coffee'
 
 /**
  * 我的咖啡收藏数据
