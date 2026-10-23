@@ -16,11 +16,12 @@ export interface DrinkLayer {
   ratio: number // 占液面高度的比例，所有层 ratio 之和 = 1
   texture?: Texture // 默认 'wave'
   side?: 'left' | 'right' // 标注引线放在哪一侧，不填则自动交替
+  annotations?: string[] // 额外标注：多种原料混合在同一层时，挂多个标签（一对多）
 }
 
 /** 顶部装饰物 */
 export interface Topping {
-  kind: 'citrus-slice' | 'leaf' | 'berry-roll' | 'fruit-bits' | 'dust'
+  kind: 'citrus-slice' | 'leaf' | 'berry-roll' | 'fruit-bits' | 'dust' | 'bubble'
   color: string
   label?: string
 }

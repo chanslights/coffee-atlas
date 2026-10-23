@@ -86,16 +86,16 @@ function Layer({ layer, y, h, index }: { layer: DrinkLayer; y: number; h: number
 }
 
 /** 风味标注：引线 + 文字，分左右两侧 */
-function Label({ layer, y, side }: { layer: DrinkLayer; y: number; side: 'left' | 'right' }) {
+function Label({ text, y, side }: { text: string; y: number; side: 'left' | 'right' }) {
   const ex = edgeX(y, side)
-  const tx = side === 'left' ? 96 : 304 // 文字锚点 x
+  const tx = side === 'left' ? 108 : 292 // 文字锚点 x
   const anchor = side === 'left' ? 'end' : 'start'
-  const lx = side === 'left' ? tx + 8 : tx - 8 // 引线靠文字一端
+  const lx = side === 'left' ? tx + 6 : tx - 6 // 引线靠文字一端
   return (
     <g>
-      <line x1={ex + (side === 'left' ? -4 : 4)} y1={y} x2={lx} y2={y - 6} stroke="#3A3226" strokeWidth="1" />
-      <text x={tx} y={y - 10} textAnchor={anchor} fontSize="13.5" fill="#3A3226" style={{ letterSpacing: 1 }}>
-        {layer.name}
+      <line x1={ex + (side === 'left' ? -4 : 4)} y1={y} x2={lx} y2={y - 5} stroke="#3A3226" strokeWidth="1" />
+      <text x={tx} y={y - 9} textAnchor={anchor} fontSize="13" fill="#3A3226" style={{ letterSpacing: 1 }}>
+        {text}
       </text>
     </g>
   )
@@ -137,6 +137,14 @@ function Garnish({ topping }: { topping: Topping }) {
           <path d={`M ${cx - 2} ${cy - 14} q 4 -10 12 -14`} stroke="#3D7A4E" strokeWidth="2" fill="none" />
         </g>
       )
+    case 'bubble':
+      // 大气泡/泡沫球：半透明球体 + 高光弧线
+      return (
+        <g>
+          <circle cx={cx} cy={cy - 8} r="44" fill="rgba(255,255,255,0.28)" stroke="rgba(255,255,255,0.85)" strokeWidth="2" />
+          <path d={`M ${cx - 28} ${cy - 30} a 32 32 0 0 1 20 -10`} stroke="rgba(255,255,255,0.95)" strokeWidth="3.5" fill="none" strokeLinecap="round" />
+        </g>
+      )
   }
 }
 
@@ -166,6 +174,16 @@ export default function LayeredCup({ drink }: { drink: Drink }) {
     return { layer, y, h: layer.ratio * H }
   })
 
+  // 把每层的 name + annotations 展平成标注列表（一对多关系的渲染入口）
+  const labelEntries = positioned.flatMap((p) => {
+    const texts = [p.layer.name, ...(p.layer.annotations ?? [])]
+    return texts.map((text, j) => ({
+      text,
+      y: p.y + (p.h * (j + 1)) / (texts.length + 1), // 同层多个标注均匀分布
+      side: p.layer.side,
+    }))
+  })
+
   return (
     <svg viewBox="0 0 400 430" className="w-full" role="img" aria-label={drink.name}>
       <defs>
@@ -175,7 +193,7 @@ export default function LayeredCup({ drink }: { drink: Drink }) {
       </defs>
 
       {/* 顶部装饰（画在杯口后面） */}
-      {drink.topping && <Garnish topping={drink.topping} />}
+      {drink.topping && drink.topping.kind !== 'dust' && <Garnish topping={drink.topping} />}
 
       {/* 层次（裁切到杯型内） */}
       <g clipPath="url(#cup-clip)">
@@ -191,9 +209,9 @@ export default function LayeredCup({ drink }: { drink: Drink }) {
       <rect x="98" y={TOP_Y - 16} width="204" height="15" rx="7.5" fill="#DCD5C5" />
 
       {/* 风味标注（左右交替，可被 layer.side 覆盖） */}
-      {positioned.map((p, i) => {
-        const side = p.layer.side ?? (i % 2 === 0 ? 'right' : 'left')
-        return <Label key={i} layer={p.layer} y={p.y + p.h / 2} side={side} />
+      {labelEntries.map((e, i) => {
+        const side = e.side ?? (i % 2 === 0 ? 'right' : 'left')
+        return <Label key={i} text={e.text} y={e.y} side={side} />
       })}
     </svg>
   )
