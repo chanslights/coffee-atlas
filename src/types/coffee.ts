@@ -20,7 +20,7 @@ export interface DrinkLayer {
 
 /** 顶部装饰物 */
 export interface Topping {
-  kind: 'citrus-slice' | 'leaf' | 'berry-roll' | 'fruit-bits'
+  kind: 'citrus-slice' | 'leaf' | 'berry-roll' | 'fruit-bits' | 'dust'
   color: string
   label?: string
 }
@@ -34,6 +34,7 @@ export interface Drink {
   alcohol: number // 酒精度，0 表示无酒精
   layers: DrinkLayer[] // 从上到下排列
   topping?: Topping
+  photo?: string // 实物打卡照路径（可选）
 }
 
 /** 一家咖啡店及其被打卡的特调 */

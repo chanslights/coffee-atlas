@@ -38,6 +38,18 @@ export default function DrinkCard({ drink }: { drink: Drink }) {
 
       {/* 分层剖面图 */}
       <LayeredCup drink={drink} />
+
+      {/* 实物打卡照（可选） */}
+      {drink.photo && (
+        <div className="mt-4 flex items-center gap-3 border-t border-[#E3D8BE] pt-4">
+          <img
+            src={drink.photo}
+            alt={`${drink.name} 实物照`}
+            className="h-14 w-14 rounded-lg object-cover shadow-sm"
+          />
+          <span className="text-xs tracking-wider text-[#A2937A]">实物打卡照 📷</span>
+        </div>
+      )}
     </div>
   )
 }

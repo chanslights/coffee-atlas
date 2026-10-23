@@ -74,4 +74,25 @@ export const shops: CoffeeShop[] = [
       },
     ],
   },
+  {
+    id: 'chuan-na-wan-hai',
+    name: '川纳万海',
+    city: '成都',
+    drinks: [
+      {
+        id: 'pistachio-dirty',
+        name: '开心果Dirty',
+        subtitle: 'Pistachio Dirty',
+        temps: ['ice'],
+        alcohol: 0,
+        topping: { kind: 'dust', color: '#3E5A26', label: '开心果碎' },
+        photo: '/photos/pistachio-dirty.jpg',
+        layers: [
+          { name: '浓缩咖啡', color: '#7A4A26', ratio: 0.1, texture: 'dots', side: 'right' },
+          { name: '开心果奶酱', color: '#D8DDC0', ratio: 0.18, side: 'left' },
+          { name: '冰博客牛奶', color: '#EDEFE2', ratio: 0.72, texture: 'plain', side: 'right' },
+        ],
+      },
+    ],
+  },
 ]

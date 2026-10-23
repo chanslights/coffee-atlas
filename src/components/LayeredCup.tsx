@@ -140,6 +140,23 @@ function Garnish({ topping }: { topping: Topping }) {
   }
 }
 
+/** 撒粉装饰：均匀撒在最上层液体表面（开心果碎、可可粉等） */
+function Dust({ color }: { color: string }) {
+  // 用固定公式生成确定性的"随机"撒点，避免每次渲染位置变化
+  const dots = Array.from({ length: 90 }, (_, i) => ({
+    x: 140 + ((i * 53) % 120),
+    y: TOP_Y + 6 + ((i * 29) % 46),
+    r: 0.8 + ((i * 7) % 3) * 0.7,
+  }))
+  return (
+    <g opacity="0.85">
+      {dots.map((d, i) => (
+        <circle key={i} cx={d.x} cy={d.y} r={d.r} fill={color} />
+      ))}
+    </g>
+  )
+}
+
 export default function LayeredCup({ drink }: { drink: Drink }) {
   // 计算每层的 y 起始位置（自上而下堆叠）
   let acc = 0
@@ -165,6 +182,8 @@ export default function LayeredCup({ drink }: { drink: Drink }) {
         {positioned.map((p, i) => (
           <Layer key={i} layer={p.layer} y={p.y} h={p.h} index={i} />
         ))}
+        {/* 撒粉类装饰画在液面上 */}
+        {drink.topping?.kind === 'dust' && <Dust color={drink.topping.color} />}
       </g>
 
       {/* 杯壁 + 杯口沿 */}
