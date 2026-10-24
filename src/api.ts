@@ -55,4 +55,24 @@ export async function uploadPhoto(file: File): Promise<string> {
   return body.path as string
 }
 
+/** 更新店铺信息（自助补全"待确认"城市等） */
+export async function updateShop(id: string, name: string, city: string): Promise<void> {
+  const res = await fetch('/api/shops/update', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, name, city }),
+  })
+  if (!res.ok) throw new Error((await res.json()).error ?? '更新失败')
+}
+
+/** 补填特调的打卡日期 */
+export async function updateDrinkDate(id: string, date: string): Promise<void> {
+  const res = await fetch('/api/drinks/update', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, date }),
+  })
+  if (!res.ok) throw new Error((await res.json()).error ?? '更新失败')
+}
+
 export type { Drink }

@@ -45,10 +45,10 @@ function CardFront({ drink }: { drink: Drink }) {
   )
 }
 
-/** 卡牌背面：实体卡片照为主图，饮料照以小图钉在角落（两张都有时） */
+/** 卡牌背面：饮料照为主图，实体卡片照以小图钉在角落（两张都有时） */
 function CardBack({ drink }: { drink: Drink }) {
-  const image = drink.cardPhoto ?? drink.photo
-  const inset = drink.cardPhoto && drink.photo ? drink.photo : null // 有主图时的角落小图
+  const image = drink.photo ?? drink.cardPhoto
+  const inset = drink.photo && drink.cardPhoto ? drink.cardPhoto : null // 有主图时的角落小图
 
   return (
     <div className="relative h-full w-full">
@@ -58,7 +58,7 @@ function CardBack({ drink }: { drink: Drink }) {
           {inset && (
             <img
               src={inset}
-              alt={`${drink.name} 饮料照`}
+              alt={`${drink.name} 实体卡片`}
               className="absolute right-3 top-3 h-20 w-20 rounded-lg border-2 border-[#FAF3E3] object-cover shadow-lg"
             />
           )}
@@ -66,8 +66,8 @@ function CardBack({ drink }: { drink: Drink }) {
           <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-5 pb-4 pt-16 text-left">
             <p className="font-serif text-xl font-bold tracking-wide text-[#FAF3E3]">{drink.name}</p>
             <p className="mt-1 text-xs tracking-wider text-[#D8CCAF]">
-              {drink.cardPhoto ? '实体卡片收藏 🃏' : '实物打卡照 📷'}
-              {inset ? ' + 饮料照 🥤' : ''}
+              {drink.photo ? '饮料打卡照 🥤' : '实体卡片收藏 🃏'}
+              {inset ? ' + 实体卡片 🃏' : ''}
               {drink.date ? ` · 打卡于 ${drink.date}` : ''}
             </p>
           </div>

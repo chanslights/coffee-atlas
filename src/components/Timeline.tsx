@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import type { CoffeeShop, Drink } from '@/types/coffee'
+import { updateDrinkDate } from '@/api'
 import LayeredCup from './LayeredCup'
 
 interface Entry {
@@ -8,7 +10,13 @@ interface Entry {
 }
 
 /** 打卡时间线：按月份分组、日期倒序（对应 SQL: ORDER BY date DESC, GROUP BY 月份） */
-export default function Timeline({ groups }: { groups: { shop: CoffeeShop; drinks: Drink[] }[] }) {
+export default function Timeline({
+  groups,
+  onSaved,
+}: {
+  groups: { shop: CoffeeShop; drinks: Drink[] }[]
+  onSaved: () => void
+}) {
   // 拍平成 (特调, 店名, 城市) 记录
   const entries: Entry[] = groups.flatMap(({ shop, drinks }) =>
     drinks.map((drink) => ({ drink, shopName: shop.name, city: shop.city })),
@@ -36,37 +44,76 @@ export default function Timeline({ groups }: { groups: { shop: CoffeeShop; drink
           {/* 月份标题 */}
           <h3 className="relative mb-4 mt-8 text-lg font-bold tracking-widest text-[#2E2823]">
             <span className="absolute -left-[27px] top-1.5 h-3 w-3 rounded-full border-2 border-[#2E2823] bg-[#F3EBD8]" />
-            {month === '未记录日期' ? month : `${month.replace('-', ' 年 ')} 月`}
+            {month === '未记录日期' ? `${month}（可以补填）` : `${month.replace('-', ' 年 ')} 月`}
             <span className="ml-3 text-xs font-normal text-[#A2937A]">{list.length} 杯</span>
           </h3>
           {/* 该月的打卡记录 */}
           <div className="space-y-4 pb-2">
-            {list.map(({ drink, shopName, city }) => (
-              <div
-                key={drink.id}
-                className="flex items-center gap-4 rounded-2xl bg-[#FAF3E3] p-4 shadow-[0_2px_10px_rgba(90,70,40,0.10)]"
-              >
-                <div className="w-16 shrink-0">
-                  <LayeredCup drink={drink} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-lg font-bold text-[#2E2823]">{drink.name}</p>
-                  <p className="truncate text-xs tracking-wider text-[#7A6E5C]">
-                    {city} · {shopName}
-                  </p>
-                  <p className="mt-1 text-xs text-[#A2937A]">
-                    {drink.layers.map((l) => l.name).join(' / ')}
-                  </p>
-                </div>
-                <div className="shrink-0 text-right text-xs text-[#A2937A]">
-                  {drink.date && <p className="mb-1 rounded-full bg-[#E3D8BE] px-2 py-0.5">{drink.date.slice(5)}</p>}
-                  <p>{drink.cardPhoto ? '🃏' : ''}{drink.photo ? '📷' : ''}</p>
-                </div>
-              </div>
+            {list.map((e) => (
+              <EntryRow key={e.drink.id} entry={e} onSaved={onSaved} />
             ))}
           </div>
         </section>
       ))}
+    </div>
+  )
+}
+
+/** 单条打卡记录；没日期的支持行内补填 */
+function EntryRow({ entry: { drink, shopName, city }, onSaved }: { entry: Entry; onSaved: () => void }) {
+  const [date, setDate] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  async function save() {
+    if (!date) return
+    setSaving(true)
+    try {
+      await updateDrinkDate(drink.id, date)
+      onSaved()
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-4 rounded-2xl bg-[#FAF3E3] p-4 shadow-[0_2px_10px_rgba(90,70,40,0.10)]">
+      <div className="w-16 shrink-0">
+        <LayeredCup drink={drink} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-lg font-bold text-[#2E2823]">{drink.name}</p>
+        <p className="truncate text-xs tracking-wider text-[#7A6E5C]">
+          {city} · {shopName}
+        </p>
+        <p className="mt-1 truncate text-xs text-[#A2937A]">{drink.layers.map((l) => l.name).join(' / ')}</p>
+      </div>
+      <div className="shrink-0 text-right text-xs text-[#A2937A]">
+        {drink.date ? (
+          <>
+            <p className="mb-1 rounded-full bg-[#E3D8BE] px-2 py-0.5">{drink.date.slice(5)}</p>
+            <p>
+              {drink.cardPhoto ? '🃏' : ''}
+              {drink.photo ? '📷' : ''}
+            </p>
+          </>
+        ) : (
+          <div className="flex items-center gap-1">
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="rounded-lg border border-[#D8CCAF] bg-[#FDF8EA] px-1.5 py-1 text-xs text-[#2E2823]"
+            />
+            <button
+              className="rounded-full bg-[#2E2823] px-2.5 py-1 text-[11px] text-[#FAF3E3] disabled:opacity-50"
+              disabled={!date || saving}
+              onClick={save}
+            >
+              {saving ? '…' : '补填'}
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

@@ -263,6 +263,43 @@ export function coffeeApiPlugin(): Plugin {
           })
           return
         }
+        // 自助补全：更新店铺信息（白名单字段，防注入）
+        if (req.method === 'POST' && url === 'shops/update') {
+          let raw = ''
+          req.on('data', (c) => (raw += c))
+          req.on('end', () => {
+            try {
+              const p = JSON.parse(raw) as { id: string; name?: string; city?: string }
+              const name = p.name?.trim() ?? ''
+              const city = p.city?.trim() ?? ''
+              if (!p.id || !name || !city) throw new Error('店铺 id、名字、城市都不能为空')
+              const r = db.prepare('UPDATE shops SET name = ?, city = ? WHERE id = ?').run(name, city, p.id)
+              if (r.changes === 0) throw new Error('店铺不存在')
+              send(res, 200, { ok: true })
+            } catch (e) {
+              send(res, 400, { error: (e as Error).message })
+            }
+          })
+          return
+        }
+        // 自助补全：更新特调打卡日期
+        if (req.method === 'POST' && url === 'drinks/update') {
+          let raw = ''
+          req.on('data', (c) => (raw += c))
+          req.on('end', () => {
+            try {
+              const p = JSON.parse(raw) as { id: string; date?: string }
+              const date = p.date ?? ''
+              if (!p.id || !/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('需要特调 id 和 YYYY-MM-DD 格式日期')
+              const r = db.prepare('UPDATE drinks SET date = ? WHERE id = ?').run(date, p.id)
+              if (r.changes === 0) throw new Error('特调不存在')
+              send(res, 200, { ok: true })
+            } catch (e) {
+              send(res, 400, { error: (e as Error).message })
+            }
+          })
+          return
+        }
         send(res, 404, { error: 'not found' })
       })
     },

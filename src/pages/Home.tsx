@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { CoffeeShop, Drink } from '@/types/coffee'
-import { fetchCollection } from '@/api'
+import { fetchCollection, updateShop } from '@/api'
 import DrinkCard from '@/components/DrinkCard'
 import CheckinForm from '@/components/CheckinForm'
 import Timeline from '@/components/Timeline'
@@ -112,16 +112,12 @@ export default function Home() {
       {loading ? (
         <p className="py-20 text-center text-sm text-[#A2937A]">正在从数据库加载收藏…</p>
       ) : view === 'timeline' ? (
-        <Timeline groups={filtered} />
+        <Timeline groups={filtered} onSaved={reload} />
       ) : (
         <>
           {filtered.map(({ shop, drinks }) => (
             <section key={shop.id} className="mx-auto mb-16 max-w-6xl">
-              <div className="mb-6 flex items-baseline gap-3 border-b border-[#D8CCAF] pb-3">
-                <h2 className="text-2xl font-bold text-[#2E2823]">{shop.name}</h2>
-                <span className="text-sm text-[#7A6E5C]">{shop.city}</span>
-                <span className="ml-auto text-xs text-[#A2937A]">{drinks.length} 杯已打卡</span>
-              </div>
+              <ShopHeader shop={shop} count={drinks.length} onSaved={reload} />
               <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
                 {drinks.map((drink) => (
                   <DrinkCard key={drink.id} drink={drink} />
@@ -141,7 +137,74 @@ export default function Home() {
   )
 }
 
-/** 筛选按钮（chip）：选中态反色 */
+/** 店铺分组头：名字 + 城市，"待确认"信息支持用户行内补全 */
+function ShopHeader({ shop, count, onSaved }: { shop: CoffeeShop; count: number; onSaved: () => void }) {
+  const [editing, setEditing] = useState(false)
+  const [name, setName] = useState(shop.name)
+  const [city, setCity] = useState(shop.city === '待确认' ? '' : shop.city)
+  const [err, setErr] = useState('')
+  const pending = shop.city === '待确认'
+
+  async function save() {
+    setErr('')
+    try {
+      await updateShop(shop.id, name, city)
+      setEditing(false)
+      onSaved()
+    } catch (e) {
+      setErr((e as Error).message)
+    }
+  }
+
+  if (editing) {
+    return (
+      <div className="mb-6 flex flex-wrap items-center gap-2 border-b border-[#D8CCAF] pb-3">
+        <input
+          className="rounded-lg border border-[#D8CCAF] bg-[#FDF8EA] px-3 py-1 text-lg font-bold text-[#2E2823]"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="店名"
+        />
+        <input
+          className="w-32 rounded-lg border border-[#D8CCAF] bg-[#FDF8EA] px-3 py-1 text-sm text-[#2E2823]"
+          value={city}
+          onChange={(e) => setCity(e.target.value)}
+          placeholder="城市，如 成都"
+          autoFocus
+        />
+        <button className="rounded-full bg-[#2E2823] px-4 py-1 text-xs text-[#FAF3E3]" onClick={save}>
+          保存
+        </button>
+        <button className="text-xs text-[#7A6E5C]" onClick={() => setEditing(false)}>
+          取消
+        </button>
+        {err && <span className="text-xs text-red-700">{err}</span>}
+      </div>
+    )
+  }
+
+  return (
+    <div className="mb-6 flex items-baseline gap-3 border-b border-[#D8CCAF] pb-3">
+      <h2 className="text-2xl font-bold text-[#2E2823]">{shop.name}</h2>
+      {pending ? (
+        <button
+          className="rounded-full bg-amber-200 px-3 py-0.5 text-xs text-amber-900 transition-colors hover:bg-amber-300"
+          onClick={() => setEditing(true)}
+        >
+          城市待确认 ✏️ 点我填写
+        </button>
+      ) : (
+        <span className="text-sm text-[#7A6E5C]">
+          {shop.city}
+          <button className="ml-1 text-[#C4B696] hover:text-[#7A6E5C]" title="编辑店铺信息" onClick={() => setEditing(true)}>
+            ✏️
+          </button>
+        </span>
+      )}
+      <span className="ml-auto text-xs text-[#A2937A]">{count} 杯已打卡</span>
+    </div>
+  )
+}
 function FilterChip({
   active,
   onClick,
