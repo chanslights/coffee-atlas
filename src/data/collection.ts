@@ -288,4 +288,50 @@ export const shops: CoffeeShop[] = [
       },
     ],
   },
+  {
+    id: 'fudou',
+    name: 'FU,DOU',
+    city: '待确认',
+    drinks: [
+      {
+        id: 'coco-wa',
+        name: 'CO CO WA 可可',
+        subtitle: 'Finca DIVISO Aji Bourbon Espresso',
+        temps: ['ice'],
+        alcohol: 0,
+        topping: { kind: 'dust', color: '#6B4428', label: '可可粉' },
+        photo: '/photos/fudou-cocowa.jpg',
+        cardPhoto: '/photos/fudou-cocowa-card.jpg',
+        date: '2026-10-24',
+        layers: [
+          { name: '生巧克力泡沫', color: '#E8DCC8', ratio: 0.18, texture: 'dots' },
+          {
+            name: 'DIVISO辣椒波旁浓缩',
+            color: '#7A4A30',
+            ratio: 0.82,
+            annotations: ['生巧克力', '秘鲁圣木糖浆'],
+          },
+        ],
+      },
+      {
+        id: 'ping-ping-ping',
+        name: 'PING PING PING 苹果',
+        subtitle: '云南厌氧日晒 · 冷萃咖啡',
+        temps: ['ice'],
+        alcohol: 0,
+        photo: '/photos/fudou-apple.jpg',
+        cardPhoto: '/photos/fudou-apple-card.jpg',
+        date: '2026-10-24',
+        layers: [
+          { name: '泡沫', color: '#E9E2D2', ratio: 0.15, texture: 'dots' },
+          {
+            name: '云南厌氧日晒冷萃',
+            color: '#5C3626',
+            ratio: 0.85,
+            annotations: ['富士苹果发酵液（苹果+肉桂发酵）', '咸味冰奶油（另配小杯）'],
+          },
+        ],
+      },
+    ],
+  },
 ]

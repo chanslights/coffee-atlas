@@ -53,20 +53,26 @@ export default function CheckinForm({
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
 
   // 打卡照片（选中即上传到 public/photos，拿到可访问路径）
+  // photo = 饮料实物照，cardPhoto = 实体卡片照（两者可以分开拍）
   const [photo, setPhoto] = useState('')
-  const [uploading, setUploading] = useState(false)
+  const [cardPhoto, setCardPhoto] = useState('')
+  const [uploading, setUploading] = useState<'' | 'photo' | 'cardPhoto'>('')
 
-  async function pickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setUploading(true)
-    setError('')
-    try {
-      setPhoto(await uploadPhoto(file))
-    } catch (err) {
-      setError((err as Error).message)
-    } finally {
-      setUploading(false)
+  function pickPhoto(kind: 'photo' | 'cardPhoto') {
+    return async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0]
+      if (!file) return
+      setUploading(kind)
+      setError('')
+      try {
+        const path = await uploadPhoto(file)
+        if (kind === 'photo') setPhoto(path)
+        else setCardPhoto(path)
+      } catch (err) {
+        setError((err as Error).message)
+      } finally {
+        setUploading('')
+      }
     }
   }
 
@@ -107,6 +113,7 @@ export default function CheckinForm({
           alcohol,
           date,
           photo: photo || undefined,
+          cardPhoto: cardPhoto || undefined,
           topping: toppingKind
             ? { kind: toppingKind as any, color: toppingColor, label: toppingLabel || undefined }
             : null,
@@ -192,13 +199,22 @@ export default function CheckinForm({
           ))}
         </div>
 
-        {/* 打卡照片 */}
-        <div className="mt-4 flex items-center gap-3">
-          <label className="cursor-pointer rounded-full bg-[#E3D8BE] px-4 py-1.5 text-xs text-[#3A3226]">
-            {uploading ? '上传中…' : photo ? '换一张照片' : '📷 上传打卡照片'}
-            <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" disabled={uploading} onChange={pickPhoto} />
-          </label>
-          {photo && <img src={photo} alt="打卡照片预览" className="h-12 w-12 rounded-lg object-cover shadow-sm" />}
+        {/* 打卡照片：饮料照与卡片照分开上传 */}
+        <div className="mt-4 flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <label className="cursor-pointer rounded-full bg-[#E3D8BE] px-4 py-1.5 text-xs text-[#3A3226]">
+              {uploading === 'photo' ? '上传中…' : photo ? '换饮料照' : '🥤 饮料照'}
+              <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" disabled={uploading !== ''} onChange={pickPhoto('photo')} />
+            </label>
+            {photo && <img src={photo} alt="饮料照预览" className="h-12 w-12 rounded-lg object-cover shadow-sm" />}
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="cursor-pointer rounded-full bg-[#E3D8BE] px-4 py-1.5 text-xs text-[#3A3226]">
+              {uploading === 'cardPhoto' ? '上传中…' : cardPhoto ? '换卡片照' : '🃏 卡片照'}
+              <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" disabled={uploading !== ''} onChange={pickPhoto('cardPhoto')} />
+            </label>
+            {cardPhoto && <img src={cardPhoto} alt="卡片照预览" className="h-12 w-12 rounded-lg object-cover shadow-sm" />}
+          </div>
         </div>
 
         {/* 层次编辑 */}

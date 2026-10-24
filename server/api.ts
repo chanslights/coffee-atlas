@@ -151,6 +151,7 @@ interface NewDrinkPayload {
     alcohol: number
     date?: string
     photo?: string
+    cardPhoto?: string
     topping?: Topping | null
     layers: { name: string; color: string; ratio: number; texture?: string; annotations?: string[] }[]
   }
@@ -174,12 +175,12 @@ function insertDrink(p: NewDrinkPayload): string {
     }
     const pos = (db.prepare('SELECT COUNT(*) AS n FROM drinks WHERE shop_id = ?').get(shopId) as { n: number }).n
     db.prepare(
-      `INSERT INTO drinks (id, shop_id, name, subtitle, temps, alcohol, photo, date,
+      `INSERT INTO drinks (id, shop_id, name, subtitle, temps, alcohol, photo, card_photo, date,
                            topping_kind, topping_color, topping_label, position)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
       drinkId, shopId, p.drink.name.trim(), p.drink.subtitle.trim(), JSON.stringify(p.drink.temps),
-      p.drink.alcohol, p.drink.photo || null, p.drink.date || null,
+      p.drink.alcohol, p.drink.photo || null, p.drink.cardPhoto || null, p.drink.date || null,
       p.drink.topping?.kind ?? null, p.drink.topping?.color ?? null, p.drink.topping?.label ?? null, pos,
     )
     const insLayer = db.prepare('INSERT INTO layers (drink_id, name, color, ratio, texture, position) VALUES (?, ?, ?, ?, ?, ?)')

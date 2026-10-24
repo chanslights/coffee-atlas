@@ -26,6 +26,7 @@ export interface NewDrinkInput {
     alcohol: number
     date?: string
     photo?: string
+    cardPhoto?: string
     topping?: Topping | null
     layers: LayerInput[]
   }

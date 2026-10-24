@@ -3,6 +3,7 @@ import type { CoffeeShop, Drink } from '@/types/coffee'
 import { fetchCollection } from '@/api'
 import DrinkCard from '@/components/DrinkCard'
 import CheckinForm from '@/components/CheckinForm'
+import Timeline from '@/components/Timeline'
 
 /** 一杯特调的所有可检索文本：名字 + 副标题 + 每层风味名 + 标注 */
 function searchableText(drink: Drink): string {
@@ -20,6 +21,7 @@ export default function Home() {
   const [shops, setShops] = useState<CoffeeShop[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
+  const [view, setView] = useState<'gallery' | 'timeline'>('gallery')
 
   async function reload() {
     setShops(await fetchCollection())
@@ -61,12 +63,29 @@ export default function Home() {
             ? `命中 ${matchedDrinks} 杯特调`
             : `已打卡 ${shops.length} 家店 · 收集 ${totalDrinks} 杯特调`}
         </p>
-        <button
-          className="mt-5 rounded-full bg-[#2E2823] px-6 py-2 text-sm tracking-widest text-[#FAF3E3] transition-transform hover:scale-105"
-          onClick={() => setShowForm(true)}
-        >
-          ＋ 新增打卡
-        </button>
+        <div className="mt-5 flex items-center justify-center gap-3">
+          {/* 视图切换：收藏墙 / 时间线 */}
+          <div className="flex rounded-full border border-[#D8CCAF] text-sm">
+            <button
+              className={`rounded-l-full px-5 py-2 tracking-widest ${view === 'gallery' ? 'bg-[#2E2823] text-[#FAF3E3]' : 'text-[#7A6E5C]'}`}
+              onClick={() => setView('gallery')}
+            >
+              收藏墙
+            </button>
+            <button
+              className={`rounded-r-full px-5 py-2 tracking-widest ${view === 'timeline' ? 'bg-[#2E2823] text-[#FAF3E3]' : 'text-[#7A6E5C]'}`}
+              onClick={() => setView('timeline')}
+            >
+              时间线
+            </button>
+          </div>
+          <button
+            className="rounded-full bg-[#2E2823] px-6 py-2 text-sm tracking-widest text-[#FAF3E3] transition-transform hover:scale-105"
+            onClick={() => setShowForm(true)}
+          >
+            ＋ 新增打卡
+          </button>
+        </div>
       </header>
 
       {/* 筛选栏 */}
@@ -92,6 +111,8 @@ export default function Home() {
       {/* 内容区 */}
       {loading ? (
         <p className="py-20 text-center text-sm text-[#A2937A]">正在从数据库加载收藏…</p>
+      ) : view === 'timeline' ? (
+        <Timeline groups={filtered} />
       ) : (
         <>
           {filtered.map(({ shop, drinks }) => (
