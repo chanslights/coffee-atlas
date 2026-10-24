@@ -42,4 +42,16 @@ export async function createDrink(payload: NewDrinkInput): Promise<string> {
   return body.id as string
 }
 
+/** 上传打卡照片：文件二进制直接作为请求体，文件名走 X-Filename 头 */
+export async function uploadPhoto(file: File): Promise<string> {
+  const res = await fetch('/api/photos', {
+    method: 'POST',
+    headers: { 'X-Filename': encodeURIComponent(file.name) },
+    body: file,
+  })
+  const body = await res.json()
+  if (!res.ok) throw new Error(body.error ?? '上传失败')
+  return body.path as string
+}
+
 export type { Drink }

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { CoffeeShop, Temp, Texture } from '@/types/coffee'
-import { createDrink, type LayerInput } from '@/api'
+import { createDrink, uploadPhoto, type LayerInput } from '@/api'
 
 const TEMP_OPTIONS: { key: Temp; label: string }[] = [
   { key: 'ice', label: 'ice 冰' },
@@ -52,6 +52,24 @@ export default function CheckinForm({
   const [alcohol, setAlcohol] = useState(0)
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
 
+  // 打卡照片（选中即上传到 public/photos，拿到可访问路径）
+  const [photo, setPhoto] = useState('')
+  const [uploading, setUploading] = useState(false)
+
+  async function pickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    setError('')
+    try {
+      setPhoto(await uploadPhoto(file))
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setUploading(false)
+    }
+  }
+
   // 层次（动态行）
   const [layers, setLayers] = useState<LayerInput[]>([
     { name: '', color: '#E8D9B0', ratio: 1, texture: 'wave', annotations: [] },
@@ -88,6 +106,7 @@ export default function CheckinForm({
           temps,
           alcohol,
           date,
+          photo: photo || undefined,
           topping: toppingKind
             ? { kind: toppingKind as any, color: toppingColor, label: toppingLabel || undefined }
             : null,
@@ -171,6 +190,15 @@ export default function CheckinForm({
               {label}
             </label>
           ))}
+        </div>
+
+        {/* 打卡照片 */}
+        <div className="mt-4 flex items-center gap-3">
+          <label className="cursor-pointer rounded-full bg-[#E3D8BE] px-4 py-1.5 text-xs text-[#3A3226]">
+            {uploading ? '上传中…' : photo ? '换一张照片' : '📷 上传打卡照片'}
+            <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" disabled={uploading} onChange={pickPhoto} />
+          </label>
+          {photo && <img src={photo} alt="打卡照片预览" className="h-12 w-12 rounded-lg object-cover shadow-sm" />}
         </div>
 
         {/* 层次编辑 */}

@@ -7,6 +7,7 @@
  */
 import { DatabaseSync } from 'node:sqlite'
 import path from 'node:path'
+import fs from 'node:fs'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Plugin } from 'vite'
 import { shops as seedShops } from '../src/data/collection'
@@ -195,12 +196,16 @@ function insertDrink(p: NewDrinkPayload): string {
   }
 }
 
-// —— HTTP 中间件：GET /api/collection 与 POST /api/drinks ——
+// —— HTTP 中间件：GET /api/collection、POST /api/drinks、POST /api/photos ——
 function send(res: ServerResponse, status: number, body: unknown) {
   res.statusCode = status
   res.setHeader('Content-Type', 'application/json; charset=utf-8')
   res.end(JSON.stringify(body))
 }
+
+const PHOTOS_DIR = path.join(import.meta.dirname, '..', 'public', 'photos')
+const ALLOWED_EXT = ['.jpg', '.jpeg', '.png', '.webp']
+const MAX_PHOTO_SIZE = 15 * 1024 * 1024 // 15MB
 
 export function coffeeApiPlugin(): Plugin {
   return {
@@ -222,6 +227,37 @@ export function coffeeApiPlugin(): Plugin {
               send(res, 201, { id })
             } catch (e) {
               send(res, 400, { error: (e as Error).message })
+            }
+          })
+          return
+        }
+        // 照片上传：请求体是文件二进制，文件名放 X-Filename 头（免 multipart 解析）
+        if (req.method === 'POST' && url === 'photos') {
+          const rawName = decodeURIComponent(String(req.headers['x-filename'] ?? 'photo.jpg'))
+          const ext = path.extname(rawName).toLowerCase()
+          if (!ALLOWED_EXT.includes(ext)) {
+            send(res, 400, { error: `只支持 ${ALLOWED_EXT.join('/')} 格式` })
+            req.resume()
+            return
+          }
+          const chunks: Buffer[] = []
+          let size = 0
+          req.on('data', (c: Buffer) => {
+            size += c.length
+            if (size > MAX_PHOTO_SIZE) {
+              send(res, 413, { error: '照片不能超过 15MB' })
+              req.destroy()
+              return
+            }
+            chunks.push(c)
+          })
+          req.on('end', () => {
+            try {
+              const name = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`
+              fs.writeFileSync(path.join(PHOTOS_DIR, name), Buffer.concat(chunks))
+              send(res, 201, { path: `/photos/${name}` })
+            } catch (e) {
+              send(res, 500, { error: (e as Error).message })
             }
           })
           return
