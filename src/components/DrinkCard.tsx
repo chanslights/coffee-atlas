@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { Drink, Temp } from '@/types/coffee'
 import LayeredCup from './LayeredCup'
 
@@ -73,8 +74,8 @@ function CardFront({
   )
 }
 
-/** 卡牌背面：饮料照为主图，实体卡片照以小图钉在角落（两张都有时） */
-function CardBack({ drink }: { drink: Drink }) {
+/** 卡牌背面：饮料照为主图，实体卡片照以小图钉在角落；点击照片可放大 */
+function CardBack({ drink, onZoom }: { drink: Drink; onZoom: (src: string) => void }) {
   const image = drink.photo ?? drink.cardPhoto
   const inset = drink.photo && drink.cardPhoto ? drink.cardPhoto : null // 有主图时的角落小图
 
@@ -82,12 +83,24 @@ function CardBack({ drink }: { drink: Drink }) {
     <div className="relative h-full w-full">
       {image ? (
         <>
-          <img src={image} alt={`${drink.name} 收藏照`} className="h-full w-full object-cover" />
+          <img
+            src={image}
+            alt={`${drink.name} 收藏照`}
+            className="h-full w-full cursor-zoom-in object-cover"
+            onClick={(e) => {
+              e.stopPropagation() // 别触发翻面
+              onZoom(image)
+            }}
+          />
           {inset && (
             <img
               src={inset}
               alt={`${drink.name} 实体卡片`}
-              className="absolute right-3 top-3 h-20 w-20 rounded-lg border-2 border-[#FAF3E3] object-cover shadow-lg"
+              className="absolute right-3 top-3 h-20 w-20 cursor-zoom-in rounded-lg border-2 border-[#FAF3E3] object-cover shadow-lg"
+              onClick={(e) => {
+                e.stopPropagation()
+                onZoom(inset)
+              }}
             />
           )}
           {/* 底部渐变信息条 */}
@@ -122,6 +135,7 @@ export default function DrinkCard({
   onDelete?: () => void
 }) {
   const [flipped, setFlipped] = useState(false)
+  const [zoom, setZoom] = useState<string | null>(null) // 放大镜里的照片路径
 
   return (
     // perspective 给容器提供 3D 景深
@@ -141,9 +155,22 @@ export default function DrinkCard({
         </div>
         {/* 背面：预先旋转 180°，与正面互为镜像 */}
         <div className="absolute inset-0 overflow-hidden rounded-2xl bg-[#2E2823] shadow-[0_2px_12px_rgba(90,70,40,0.25)] [backface-visibility:hidden] [transform:rotateY(180deg)]">
-          <CardBack drink={drink} />
+          <CardBack drink={drink} onZoom={setZoom} />
         </div>
       </div>
+
+      {/* 照片放大镜：用 Portal 挂到 body，避免被翻牌的 3D transform 困住 */}
+      {zoom &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[100] flex cursor-zoom-out items-center justify-center bg-black/85 p-6"
+            onClick={() => setZoom(null)}
+          >
+            <img src={zoom} alt="放大查看" className="max-h-full max-w-full rounded-xl object-contain shadow-2xl" />
+            <p className="absolute bottom-6 text-xs tracking-widest text-white/60">点击任意处关闭</p>
+          </div>,
+          document.body,
+        )}
     </div>
   )
 }
