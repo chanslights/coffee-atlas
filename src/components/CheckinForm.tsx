@@ -60,6 +60,7 @@ export default function CheckinForm({
   const [temps, setTemps] = useState<Temp[]>(init?.temps ?? ['ice'])
   const [alcohol, setAlcohol] = useState(init?.alcohol ?? 0)
   const [date, setDate] = useState(init?.date ?? new Date().toISOString().slice(0, 10))
+  const [frosted, setFrosted] = useState(init?.frosted ?? false)
 
   // 打卡照片（photo = 饮料照，cardPhoto = 卡片照）
   const [photo, setPhoto] = useState(init?.photo ?? '')
@@ -125,6 +126,7 @@ export default function CheckinForm({
         date,
         photo: photo || undefined,
         cardPhoto: cardPhoto || undefined,
+        frosted,
         topping: toppingKind
           ? { kind: toppingKind as any, color: toppingColor, label: toppingLabel || undefined }
           : null,
@@ -224,6 +226,10 @@ export default function CheckinForm({
               {label}
             </label>
           ))}
+          <label className="flex items-center gap-1.5 text-sm text-[#3A3226]">
+            <input type="checkbox" checked={frosted} onChange={() => setFrosted((f) => !f)} />
+            🧊 冰霜杯
+          </label>
         </div>
 
         {/* 打卡照片：饮料照与卡片照分开上传 */}

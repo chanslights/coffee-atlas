@@ -56,6 +56,15 @@ db.exec(`
   );
 `)
 
+// —— schema 演进（DDL migration）：给已存在的库补新列 ——
+// 新装的环境走上面的 CREATE TABLE 已包含全部列？不——CREATE IF NOT EXISTS 不会改老表，
+// 所以用 PRAGMA 检查列是否存在，缺则 ALTER TABLE 补上
+const drinkCols = db.prepare('PRAGMA table_info(drinks)').all() as { name: string }[]
+if (!drinkCols.some((c) => c.name === 'frosted')) {
+  db.exec('ALTER TABLE drinks ADD COLUMN frosted INTEGER NOT NULL DEFAULT 0')
+  console.log('[coffee-api] migration: drinks 表新增 frosted 列（冰霜杯）')
+}
+
 /** 首次启动：把 collection.ts 里的收藏灌进数据库（种子数据） */
 function seed() {
   const row = db.prepare('SELECT COUNT(*) AS n FROM shops').get() as { n: number }
@@ -63,8 +72,8 @@ function seed() {
   const insShop = db.prepare('INSERT INTO shops (id, name, city) VALUES (?, ?, ?)')
   const insDrink = db.prepare(
     `INSERT INTO drinks (id, shop_id, name, subtitle, temps, alcohol, photo, card_photo, date,
-                         topping_kind, topping_color, topping_label, position)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                         topping_kind, topping_color, topping_label, frosted, position)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   )
   const insLayer = db.prepare(
     'INSERT INTO layers (drink_id, name, color, ratio, texture, side, position) VALUES (?, ?, ?, ?, ?, ?, ?)',
@@ -79,7 +88,8 @@ function seed() {
         insDrink.run(
           d.id, shop.id, d.name, d.subtitle, JSON.stringify(d.temps), d.alcohol,
           d.photo ?? null, d.cardPhoto ?? null, d.date ?? null,
-          d.topping?.kind ?? null, d.topping?.color ?? null, d.topping?.label ?? null, di,
+          d.topping?.kind ?? null, d.topping?.color ?? null, d.topping?.label ?? null,
+          d.frosted ? 1 : 0, di,
         )
         d.layers.forEach((l, li) => {
           const { lastInsertRowid } = insLayer.run(d.id, l.name, l.color, l.ratio, l.texture ?? null, l.side ?? null, li)
@@ -122,6 +132,7 @@ export function queryCollection(): CoffeeShop[] {
           photo: d.photo ?? undefined,
           cardPhoto: d.card_photo ?? undefined,
           date: d.date ?? undefined,
+          frosted: !!d.frosted,
           topping,
           layers: layerRows
             .filter((l) => l.drink_id === d.id)
@@ -152,6 +163,7 @@ interface NewDrinkPayload {
     date?: string
     photo?: string
     cardPhoto?: string
+    frosted?: boolean
     topping?: Topping | null
     layers: { name: string; color: string; ratio: number; texture?: string; annotations?: string[] }[]
   }
@@ -176,12 +188,13 @@ function insertDrink(p: NewDrinkPayload): string {
     const pos = (db.prepare('SELECT COUNT(*) AS n FROM drinks WHERE shop_id = ?').get(shopId) as { n: number }).n
     db.prepare(
       `INSERT INTO drinks (id, shop_id, name, subtitle, temps, alcohol, photo, card_photo, date,
-                           topping_kind, topping_color, topping_label, position)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                           topping_kind, topping_color, topping_label, frosted, position)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
       drinkId, shopId, p.drink.name.trim(), p.drink.subtitle.trim(), JSON.stringify(p.drink.temps),
       p.drink.alcohol, p.drink.photo || null, p.drink.cardPhoto || null, p.drink.date || null,
-      p.drink.topping?.kind ?? null, p.drink.topping?.color ?? null, p.drink.topping?.label ?? null, pos,
+      p.drink.topping?.kind ?? null, p.drink.topping?.color ?? null, p.drink.topping?.label ?? null,
+      p.drink.frosted ? 1 : 0, pos,
     )
     const insLayer = db.prepare('INSERT INTO layers (drink_id, name, color, ratio, texture, position) VALUES (?, ?, ?, ?, ?, ?)')
     const insAnno = db.prepare('INSERT INTO layer_annotations (layer_id, text, position) VALUES (?, ?, ?)')
@@ -208,12 +221,13 @@ function updateDrinkFull(id: string, d: NewDrinkPayload['drink']) {
   try {
     db.prepare(
       `UPDATE drinks SET name = ?, subtitle = ?, temps = ?, alcohol = ?, photo = ?, card_photo = ?, date = ?,
-                         topping_kind = ?, topping_color = ?, topping_label = ?
+                         topping_kind = ?, topping_color = ?, topping_label = ?, frosted = ?
        WHERE id = ?`,
     ).run(
       d.name.trim(), d.subtitle.trim(), JSON.stringify(d.temps), d.alcohol,
       d.photo || null, d.cardPhoto || null, d.date || null,
-      d.topping?.kind ?? null, d.topping?.color ?? null, d.topping?.label ?? null, id,
+      d.topping?.kind ?? null, d.topping?.color ?? null, d.topping?.label ?? null,
+      d.frosted ? 1 : 0, id,
     )
     // 子表重建：先删干净再按新数据插入
     db.prepare('DELETE FROM layer_annotations WHERE layer_id IN (SELECT id FROM layers WHERE drink_id = ?)').run(id)

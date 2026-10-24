@@ -211,6 +211,20 @@ export default function LayeredCup({ drink }: { drink: Drink }) {
       <path d={cupInnerPath} fill="none" stroke="#DCD5C5" strokeWidth="9" strokeLinejoin="round" />
       <rect x="98" y={TOP_Y - 16} width="204" height="15" rx="7.5" fill="#DCD5C5" />
 
+      {/* 冰霜杯：白色雾面霜层 + 沿杯壁的霜花颗粒 */}
+      {drink.frosted && (
+        <g>
+          <path d={cupInnerPath} fill="none" stroke="rgba(240,245,242,0.6)" strokeWidth="12" strokeLinejoin="round" />
+          <rect x="98" y={TOP_Y - 16} width="204" height="15" rx="7.5" fill="#E9EEE9" opacity="0.85" />
+          {Array.from({ length: 40 }, (_, i) => {
+            const y = TOP_Y + 8 + ((i * 37) % (H - 16))
+            const side = i % 2 ? 'left' : 'right'
+            const x = edgeX(y, side) + (side === 'left' ? -1 : 1) * (2 + ((i * 13) % 6))
+            return <circle key={i} cx={x} cy={y} r={0.7 + ((i * 5) % 3) * 0.5} fill="rgba(255,255,255,0.85)" />
+          })}
+        </g>
+      )}
+
       {/* 风味标注（左右交替，可被 layer.side 覆盖） */}
       {labelEntries.map((e, i) => {
         const side = e.side ?? (i % 2 === 0 ? 'right' : 'left')
