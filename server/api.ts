@@ -197,6 +197,55 @@ function insertDrink(p: NewDrinkPayload): string {
   }
 }
 
+/** UPDATE：整体编辑一杯特调（主表改字段，层次子表删了重插，事务保证） */
+function updateDrinkFull(id: string, d: NewDrinkPayload['drink']) {
+  if (!d.name.trim()) throw new Error('特调名字不能为空')
+  if (!d.layers.length || !d.layers.every((l) => l.name.trim())) throw new Error('至少要有一层且每层要有名字')
+  const exists = db.prepare('SELECT id FROM drinks WHERE id = ?').get(id)
+  if (!exists) throw new Error('特调不存在')
+
+  db.exec('BEGIN')
+  try {
+    db.prepare(
+      `UPDATE drinks SET name = ?, subtitle = ?, temps = ?, alcohol = ?, photo = ?, card_photo = ?, date = ?,
+                         topping_kind = ?, topping_color = ?, topping_label = ?
+       WHERE id = ?`,
+    ).run(
+      d.name.trim(), d.subtitle.trim(), JSON.stringify(d.temps), d.alcohol,
+      d.photo || null, d.cardPhoto || null, d.date || null,
+      d.topping?.kind ?? null, d.topping?.color ?? null, d.topping?.label ?? null, id,
+    )
+    // 子表重建：先删干净再按新数据插入
+    db.prepare('DELETE FROM layer_annotations WHERE layer_id IN (SELECT id FROM layers WHERE drink_id = ?)').run(id)
+    db.prepare('DELETE FROM layers WHERE drink_id = ?').run(id)
+    const insLayer = db.prepare('INSERT INTO layers (drink_id, name, color, ratio, texture, position) VALUES (?, ?, ?, ?, ?, ?)')
+    const insAnno = db.prepare('INSERT INTO layer_annotations (layer_id, text, position) VALUES (?, ?, ?)')
+    d.layers.forEach((l, li) => {
+      const { lastInsertRowid } = insLayer.run(id, l.name, l.color, l.ratio, l.texture ?? null, li)
+      ;(l.annotations ?? []).filter(Boolean).forEach((t, ai) => insAnno.run(Number(lastInsertRowid), t, ai))
+    })
+    db.exec('COMMIT')
+  } catch (e) {
+    db.exec('ROLLBACK')
+    throw e
+  }
+}
+
+/** DELETE：删除特调及其层次、标注（级联，事务保证） */
+function deleteDrink(id: string) {
+  db.exec('BEGIN')
+  try {
+    db.prepare('DELETE FROM layer_annotations WHERE layer_id IN (SELECT id FROM layers WHERE drink_id = ?)').run(id)
+    db.prepare('DELETE FROM layers WHERE drink_id = ?').run(id)
+    const r = db.prepare('DELETE FROM drinks WHERE id = ?').run(id)
+    if (r.changes === 0) throw new Error('特调不存在')
+    db.exec('COMMIT')
+  } catch (e) {
+    db.exec('ROLLBACK')
+    throw e
+  }
+}
+
 // —— HTTP 中间件：GET /api/collection、POST /api/drinks、POST /api/photos ——
 function send(res: ServerResponse, status: number, body: unknown) {
   res.statusCode = status
@@ -293,6 +342,37 @@ export function coffeeApiPlugin(): Plugin {
               if (!p.id || !/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('需要特调 id 和 YYYY-MM-DD 格式日期')
               const r = db.prepare('UPDATE drinks SET date = ? WHERE id = ?').run(date, p.id)
               if (r.changes === 0) throw new Error('特调不存在')
+              send(res, 200, { ok: true })
+            } catch (e) {
+              send(res, 400, { error: (e as Error).message })
+            }
+          })
+          return
+        }
+        // 整体编辑：主表 UPDATE + 层次子表删了重插（事务）
+        if (req.method === 'POST' && url === 'drinks/update-full') {
+          let raw = ''
+          req.on('data', (c) => (raw += c))
+          req.on('end', () => {
+            try {
+              const p = JSON.parse(raw) as { id: string; drink: NewDrinkPayload['drink'] }
+              updateDrinkFull(p.id, p.drink)
+              send(res, 200, { ok: true })
+            } catch (e) {
+              send(res, 400, { error: (e as Error).message })
+            }
+          })
+          return
+        }
+        // 删除特调：级联清理层次与标注（事务）
+        if (req.method === 'POST' && url === 'drinks/delete') {
+          let raw = ''
+          req.on('data', (c) => (raw += c))
+          req.on('end', () => {
+            try {
+              const p = JSON.parse(raw) as { id: string }
+              if (!p.id) throw new Error('需要特调 id')
+              deleteDrink(p.id)
               send(res, 200, { ok: true })
             } catch (e) {
               send(res, 400, { error: (e as Error).message })

@@ -75,4 +75,24 @@ export async function updateDrinkDate(id: string, date: string): Promise<void> {
   if (!res.ok) throw new Error((await res.json()).error ?? '更新失败')
 }
 
+/** 整体编辑一杯特调（含层次重建） */
+export async function updateDrinkFull(id: string, drink: NewDrinkInput['drink']): Promise<void> {
+  const res = await fetch('/api/drinks/update-full', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, drink }),
+  })
+  if (!res.ok) throw new Error((await res.json()).error ?? '更新失败')
+}
+
+/** 删除一杯特调 */
+export async function deleteDrink(id: string): Promise<void> {
+  const res = await fetch('/api/drinks/delete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id }),
+  })
+  if (!res.ok) throw new Error((await res.json()).error ?? '删除失败')
+}
+
 export type { Drink }

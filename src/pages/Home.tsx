@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { CoffeeShop, Drink } from '@/types/coffee'
-import { fetchCollection, updateShop } from '@/api'
+import { fetchCollection, updateShop, deleteDrink } from '@/api'
 import DrinkCard from '@/components/DrinkCard'
 import CheckinForm from '@/components/CheckinForm'
 import Timeline from '@/components/Timeline'
@@ -21,7 +21,15 @@ export default function Home() {
   const [shops, setShops] = useState<CoffeeShop[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
+  const [editTarget, setEditTarget] = useState<{ drink: Drink; shopId: string } | null>(null)
   const [view, setView] = useState<'gallery' | 'timeline'>('gallery')
+
+  // 删除：不可恢复操作，先弹确认
+  async function handleDelete(drink: Drink) {
+    if (!window.confirm(`确定删除「${drink.name}」吗？此操作不可恢复。`)) return
+    await deleteDrink(drink.id)
+    reload()
+  }
 
   async function reload() {
     setShops(await fetchCollection())
@@ -120,7 +128,12 @@ export default function Home() {
               <ShopHeader shop={shop} count={drinks.length} onSaved={reload} />
               <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
                 {drinks.map((drink) => (
-                  <DrinkCard key={drink.id} drink={drink} />
+                  <DrinkCard
+                    key={drink.id}
+                    drink={drink}
+                    onEdit={() => setEditTarget({ drink, shopId: shop.id })}
+                    onDelete={() => handleDelete(drink)}
+                  />
                 ))}
               </div>
             </section>
@@ -131,8 +144,11 @@ export default function Home() {
         </>
       )}
 
-      {/* 新增打卡弹窗 */}
+      {/* 新增 / 编辑打卡弹窗 */}
       {showForm && <CheckinForm shops={shops} onCreated={reload} onClose={() => setShowForm(false)} />}
+      {editTarget && (
+        <CheckinForm shops={shops} editTarget={editTarget} onCreated={reload} onClose={() => setEditTarget(null)} />
+      )}
     </div>
   )
 }

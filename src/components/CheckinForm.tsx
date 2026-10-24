@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import type { CoffeeShop, Temp, Texture } from '@/types/coffee'
-import { createDrink, uploadPhoto, type LayerInput } from '@/api'
+import type { CoffeeShop, Drink, Temp, Texture } from '@/types/coffee'
+import { createDrink, updateDrinkFull, uploadPhoto, type LayerInput } from '@/api'
 
 const TEMP_OPTIONS: { key: Temp; label: string }[] = [
   { key: 'ice', label: 'ice 冰' },
@@ -29,33 +29,41 @@ const inputCls =
   'w-full rounded-lg border border-[#D8CCAF] bg-[#FDF8EA] px-3 py-1.5 text-sm text-[#2E2823] outline-none focus:border-[#A2937A]'
 const labelCls = 'mb-1 block text-xs tracking-wider text-[#7A6E5C]'
 
-/** 新增打卡表单：填写数据 → POST /api/drinks → 事务写入 SQLite */
+/**
+ * 打卡表单（双模式）：
+ *  - 无 editTarget：新增打卡（POST /api/drinks）
+ *  - 有 editTarget：整体编辑（POST /api/drinks/update-full，店铺不可改）
+ */
 export default function CheckinForm({
   shops,
   onCreated,
   onClose,
+  editTarget,
 }: {
   shops: CoffeeShop[]
   onCreated: () => void
   onClose: () => void
+  editTarget?: { drink: Drink; shopId: string }
 }) {
-  // 店铺：选已有 or 新建
+  const editing = !!editTarget
+  const init = editTarget?.drink
+
+  // 店铺：选已有 or 新建（编辑模式下锁定）
   const [shopMode, setShopMode] = useState<'existing' | 'new'>('existing')
-  const [shopId, setShopId] = useState(shops[0]?.id ?? '')
+  const [shopId, setShopId] = useState(editTarget?.shopId ?? shops[0]?.id ?? '')
   const [newShopName, setNewShopName] = useState('')
   const [newShopCity, setNewShopCity] = useState('')
 
   // 特调基本信息
-  const [name, setName] = useState('')
-  const [subtitle, setSubtitle] = useState('')
-  const [temps, setTemps] = useState<Temp[]>(['ice'])
-  const [alcohol, setAlcohol] = useState(0)
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
+  const [name, setName] = useState(init?.name ?? '')
+  const [subtitle, setSubtitle] = useState(init?.subtitle ?? '')
+  const [temps, setTemps] = useState<Temp[]>(init?.temps ?? ['ice'])
+  const [alcohol, setAlcohol] = useState(init?.alcohol ?? 0)
+  const [date, setDate] = useState(init?.date ?? new Date().toISOString().slice(0, 10))
 
-  // 打卡照片（选中即上传到 public/photos，拿到可访问路径）
-  // photo = 饮料实物照，cardPhoto = 实体卡片照（两者可以分开拍）
-  const [photo, setPhoto] = useState('')
-  const [cardPhoto, setCardPhoto] = useState('')
+  // 打卡照片（photo = 饮料照，cardPhoto = 卡片照）
+  const [photo, setPhoto] = useState(init?.photo ?? '')
+  const [cardPhoto, setCardPhoto] = useState(init?.cardPhoto ?? '')
   const [uploading, setUploading] = useState<'' | 'photo' | 'cardPhoto'>('')
 
   function pickPhoto(kind: 'photo' | 'cardPhoto') {
@@ -77,14 +85,20 @@ export default function CheckinForm({
   }
 
   // 层次（动态行）
-  const [layers, setLayers] = useState<LayerInput[]>([
-    { name: '', color: '#E8D9B0', ratio: 1, texture: 'wave', annotations: [] },
-  ])
+  const [layers, setLayers] = useState<LayerInput[]>(
+    init?.layers.map((l) => ({
+      name: l.name,
+      color: l.color,
+      ratio: l.ratio,
+      texture: l.texture ?? 'wave',
+      annotations: l.annotations ?? [],
+    })) ?? [{ name: '', color: '#E8D9B0', ratio: 1, texture: 'wave', annotations: [] }],
+  )
 
   // 装饰
-  const [toppingKind, setToppingKind] = useState('')
-  const [toppingLabel, setToppingLabel] = useState('')
-  const [toppingColor, setToppingColor] = useState('#4A5D3A')
+  const [toppingKind, setToppingKind] = useState(init?.topping?.kind ?? '')
+  const [toppingLabel, setToppingLabel] = useState(init?.topping?.label ?? '')
+  const [toppingColor, setToppingColor] = useState(init?.topping?.color ?? '#4A5D3A')
 
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -103,23 +117,28 @@ export default function CheckinForm({
     }
     setSubmitting(true)
     try {
-      await createDrink({
-        shopId: shopMode === 'existing' ? shopId : undefined,
-        newShop: shopMode === 'new' ? { name: newShopName, city: newShopCity } : undefined,
-        drink: {
-          name,
-          subtitle,
-          temps,
-          alcohol,
-          date,
-          photo: photo || undefined,
-          cardPhoto: cardPhoto || undefined,
-          topping: toppingKind
-            ? { kind: toppingKind as any, color: toppingColor, label: toppingLabel || undefined }
-            : null,
-          layers,
-        },
-      })
+      const drink = {
+        name,
+        subtitle,
+        temps,
+        alcohol,
+        date,
+        photo: photo || undefined,
+        cardPhoto: cardPhoto || undefined,
+        topping: toppingKind
+          ? { kind: toppingKind as any, color: toppingColor, label: toppingLabel || undefined }
+          : null,
+        layers,
+      }
+      if (editing) {
+        await updateDrinkFull(editTarget.drink.id, drink)
+      } else {
+        await createDrink({
+          shopId: shopMode === 'existing' ? shopId : undefined,
+          newShop: shopMode === 'new' ? { name: newShopName, city: newShopCity } : undefined,
+          drink,
+        })
+      }
       onCreated()
       onClose()
     } catch (e) {
@@ -135,36 +154,44 @@ export default function CheckinForm({
         className="max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-[#FAF3E3] p-6 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="mb-5 text-xl font-bold text-[#2E2823]">☕ 新增打卡</h3>
+        <h3 className="mb-5 text-xl font-bold text-[#2E2823]">{editing ? '✏️ 编辑打卡' : '☕ 新增打卡'}</h3>
 
-        {/* 店铺 */}
-        <div className="mb-4 flex gap-2">
-          <button
-            className={`rounded-full px-3 py-1 text-xs ${shopMode === 'existing' ? 'bg-[#2E2823] text-[#FAF3E3]' : 'bg-[#E3D8BE]'}`}
-            onClick={() => setShopMode('existing')}
-          >
-            选已有店铺
-          </button>
-          <button
-            className={`rounded-full px-3 py-1 text-xs ${shopMode === 'new' ? 'bg-[#2E2823] text-[#FAF3E3]' : 'bg-[#E3D8BE]'}`}
-            onClick={() => setShopMode('new')}
-          >
-            新店
-          </button>
-        </div>
-        {shopMode === 'existing' ? (
-          <select className={inputCls} value={shopId} onChange={(e) => setShopId(e.target.value)}>
-            {shops.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.city} · {s.name}
-              </option>
-            ))}
-          </select>
+        {/* 店铺（编辑模式下锁定展示） */}
+        {editing ? (
+          <p className="mb-1 text-sm text-[#7A6E5C]">
+            店铺：{shops.find((s) => s.id === shopId)?.city} · {shops.find((s) => s.id === shopId)?.name}
+          </p>
         ) : (
-          <div className="flex gap-2">
-            <input className={inputCls} placeholder="店名，如 MINDFO" value={newShopName} onChange={(e) => setNewShopName(e.target.value)} />
-            <input className={inputCls} placeholder="城市，如 广州" value={newShopCity} onChange={(e) => setNewShopCity(e.target.value)} />
-          </div>
+          <>
+            <div className="mb-4 flex gap-2">
+              <button
+                className={`rounded-full px-3 py-1 text-xs ${shopMode === 'existing' ? 'bg-[#2E2823] text-[#FAF3E3]' : 'bg-[#E3D8BE]'}`}
+                onClick={() => setShopMode('existing')}
+              >
+                选已有店铺
+              </button>
+              <button
+                className={`rounded-full px-3 py-1 text-xs ${shopMode === 'new' ? 'bg-[#2E2823] text-[#FAF3E3]' : 'bg-[#E3D8BE]'}`}
+                onClick={() => setShopMode('new')}
+              >
+                新店
+              </button>
+            </div>
+            {shopMode === 'existing' ? (
+              <select className={inputCls} value={shopId} onChange={(e) => setShopId(e.target.value)}>
+                {shops.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.city} · {s.name}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div className="flex gap-2">
+                <input className={inputCls} placeholder="店名，如 MINDFO" value={newShopName} onChange={(e) => setNewShopName(e.target.value)} />
+                <input className={inputCls} placeholder="城市，如 广州" value={newShopCity} onChange={(e) => setNewShopCity(e.target.value)} />
+              </div>
+            )}
+          </>
         )}
 
         {/* 基本信息 */}
@@ -318,7 +345,7 @@ export default function CheckinForm({
             disabled={submitting}
             onClick={submit}
           >
-            {submitting ? '保存中…' : '打卡！'}
+            {submitting ? '保存中…' : editing ? '保存修改' : '打卡！'}
           </button>
         </div>
       </div>

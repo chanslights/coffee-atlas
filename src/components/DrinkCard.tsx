@@ -8,8 +8,16 @@ const TEMPS: { key: Temp; label: string }[] = [
   { key: 'warm', label: 'warm' },
 ]
 
-/** 卡牌正面：温度行 + 标题 + 分层剖面图 */
-function CardFront({ drink }: { drink: Drink }) {
+/** 卡牌正面：温度行 + 标题 + 分层剖面图 + 编辑/删除入口 */
+function CardFront({
+  drink,
+  onEdit,
+  onDelete,
+}: {
+  drink: Drink
+  onEdit?: () => void
+  onDelete?: () => void
+}) {
   return (
     <>
       {/* 顶部行：温度勾选 + 酒精度 */}
@@ -40,7 +48,27 @@ function CardFront({ drink }: { drink: Drink }) {
       {/* 分层剖面图 */}
       <LayeredCup drink={drink} />
 
-      <p className="mt-3 text-center text-[11px] tracking-widest text-[#B8A98C]">点击卡片翻面 →</p>
+      <div className="mt-3 flex items-center justify-between">
+        <button
+          className="rounded-full px-2 py-0.5 text-[11px] text-[#B8A98C] transition-colors hover:bg-[#E3D8BE] hover:text-[#3A3226]"
+          onClick={(e) => {
+            e.stopPropagation() // 阻止冒泡，别触发翻面
+            onEdit?.()
+          }}
+        >
+          ✏️ 编辑
+        </button>
+        <p className="text-[11px] tracking-widest text-[#B8A98C]">点击卡片翻面 →</p>
+        <button
+          className="rounded-full px-2 py-0.5 text-[11px] text-[#B8A98C] transition-colors hover:bg-red-100 hover:text-red-700"
+          onClick={(e) => {
+            e.stopPropagation()
+            onDelete?.()
+          }}
+        >
+          🗑 删除
+        </button>
+      </div>
     </>
   )
 }
@@ -84,7 +112,15 @@ function CardBack({ drink }: { drink: Drink }) {
 }
 
 /** 可翻面的特调收藏卡：正面图鉴，背面照片 */
-export default function DrinkCard({ drink }: { drink: Drink }) {
+export default function DrinkCard({
+  drink,
+  onEdit,
+  onDelete,
+}: {
+  drink: Drink
+  onEdit?: () => void
+  onDelete?: () => void
+}) {
   const [flipped, setFlipped] = useState(false)
 
   return (
@@ -101,7 +137,7 @@ export default function DrinkCard({ drink }: { drink: Drink }) {
       >
         {/* 正面：backface-hidden 保证翻到背面时正面不可见 */}
         <div className="rounded-2xl bg-[#FAF3E3] p-6 shadow-[0_2px_12px_rgba(90,70,40,0.12)] [backface-visibility:hidden]">
-          <CardFront drink={drink} />
+          <CardFront drink={drink} onEdit={onEdit} onDelete={onDelete} />
         </div>
         {/* 背面：预先旋转 180°，与正面互为镜像 */}
         <div className="absolute inset-0 overflow-hidden rounded-2xl bg-[#2E2823] shadow-[0_2px_12px_rgba(90,70,40,0.25)] [backface-visibility:hidden] [transform:rotateY(180deg)]">
